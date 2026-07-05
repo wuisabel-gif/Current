@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:fast_noise/fast_noise.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import 'save_image/save_image.dart';
 
@@ -25,6 +24,7 @@ class CurrentApp extends StatelessWidget {
 const double _kNoiseFrequency = 0.00135;
 const double _kTimeSpeed = 0.008;
 const double _kHueSpread = 24;
+const double _kExportHueSpread = 18;
 const double _kAttractorRadius = 330;
 const double _kAttractorOrbit = 0.38;
 const double _kDriftStrength = 0.55;
@@ -92,7 +92,6 @@ class CurrentScreen extends StatefulWidget {
 
 class _CurrentScreenState extends State<CurrentScreen>
     with SingleTickerProviderStateMixin {
-  final _captureKey = GlobalKey();
   late final AnimationController _controller;
   final List<Particle> _particles = [];
   final List<Offset> _clusterCenters = [];
@@ -112,6 +111,7 @@ class _CurrentScreenState extends State<CurrentScreen>
   Offset? _attractor;
   double _t = 0;
   bool _isSaving = false;
+  bool _controlsExpanded = true;
 
   @override
   void initState() {
@@ -249,12 +249,9 @@ class _CurrentScreenState extends State<CurrentScreen>
     setState(() => _isSaving = true);
 
     try {
-      final boundary =
-          _captureKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
-      if (boundary == null) return;
+      if (_size == Size.zero) return;
 
-      final image = await boundary.toImage(pixelRatio: 2);
+      final image = await _renderExportImage(pixelRatio: 3);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData?.buffer.asUint8List();
       image.dispose();
@@ -269,6 +266,24 @@ class _CurrentScreenState extends State<CurrentScreen>
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<ui.Image> _renderExportImage({required double pixelRatio}) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..scale(pixelRatio);
+    FlowFieldPainter(
+      particles: _particles,
+      t: _t,
+      attractor: _attractor,
+      settings: _settings.copyWith(strokeWidth: 1.15, hueBase: 76),
+      exportMode: true,
+    ).paint(canvas, _size);
+
+    final picture = recorder.endRecording();
+    return picture.toImage(
+      (_size.width * pixelRatio).round(),
+      (_size.height * pixelRatio).round(),
+    );
   }
 
   @override
@@ -302,17 +317,14 @@ class _CurrentScreenState extends State<CurrentScreen>
                     _size = size;
                     _seed(size);
                   }
-                  return RepaintBoundary(
-                    key: _captureKey,
-                    child: CustomPaint(
-                      painter: FlowFieldPainter(
-                        particles: _particles,
-                        t: _t,
-                        attractor: _attractor,
-                        settings: _settings,
-                      ),
-                      child: const SizedBox.expand(),
+                  return CustomPaint(
+                    painter: FlowFieldPainter(
+                      particles: _particles,
+                      t: _t,
+                      attractor: _attractor,
+                      settings: _settings,
                     ),
+                    child: const SizedBox.expand(),
                   );
                 },
               ),
@@ -324,6 +336,10 @@ class _CurrentScreenState extends State<CurrentScreen>
               child: FlowControls(
                 settings: _settings,
                 isSaving: _isSaving,
+                isExpanded: _controlsExpanded,
+                onToggleExpanded: () {
+                  setState(() => _controlsExpanded = !_controlsExpanded);
+                },
                 onChanged: _applySettings,
                 onExport: _savePng,
                 onReseed: () => _seed(_size),
@@ -341,6 +357,8 @@ class FlowControls extends StatelessWidget {
     super.key,
     required this.settings,
     required this.isSaving,
+    required this.isExpanded,
+    required this.onToggleExpanded,
     required this.onChanged,
     required this.onExport,
     required this.onReseed,
@@ -348,12 +366,25 @@ class FlowControls extends StatelessWidget {
 
   final FlowSettings settings;
   final bool isSaving;
+  final bool isExpanded;
+  final VoidCallback onToggleExpanded;
   final ValueChanged<FlowSettings> onChanged;
   final VoidCallback onExport;
   final VoidCallback onReseed;
 
   @override
   Widget build(BuildContext context) {
+    if (!isExpanded) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: _RoundIconAction(
+          icon: Icons.tune_rounded,
+          label: 'Show controls',
+          onPressed: onToggleExpanded,
+        ),
+      );
+    }
+
     return Container(
       width: min(MediaQuery.sizeOf(context).width - 24, 980),
       margin: const EdgeInsets.all(12),
@@ -368,6 +399,11 @@ class FlowControls extends StatelessWidget {
         runSpacing: 10,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
+          _RoundIconAction(
+            icon: Icons.keyboard_arrow_up_rounded,
+            label: 'Hide controls',
+            onPressed: onToggleExpanded,
+          ),
           _IconAction(
             icon: Icons.download_rounded,
             label: isSaving ? 'Saving' : 'PNG',
@@ -423,6 +459,35 @@ class FlowControls extends StatelessWidget {
   static String _trailLabel(double fadeOpacity) {
     final amount = 1 - (fadeOpacity - 0.012) / (0.07 - 0.012);
     return '${(amount * 100).round()}%';
+  }
+}
+
+class _RoundIconAction extends StatelessWidget {
+  const _RoundIconAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: IconButton.filled(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xFFFFD36A),
+          foregroundColor: const Color(0xFF1B1202),
+          minimumSize: const Size(42, 42),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
   }
 }
 
@@ -528,12 +593,14 @@ class FlowFieldPainter extends CustomPainter {
     required this.t,
     required this.attractor,
     required this.settings,
+    this.exportMode = false,
   });
 
   final List<Particle> particles;
   final double t;
   final Offset? attractor;
   final FlowSettings settings;
+  final bool exportMode;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -545,29 +612,55 @@ class FlowFieldPainter extends CustomPainter {
     final linePaint = Paint()
       ..strokeCap = StrokeCap.round
       ..blendMode = BlendMode.screen;
+    final corePaint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..blendMode = BlendMode.plus;
 
     for (final p in particles) {
-      final a = atan2(p.pos.dy - p.prev.dy, p.pos.dx - p.prev.dx);
-      var hue = (settings.hueBase + sin(a) * _kHueSpread + t * 12) % 360;
+      final from = exportMode
+          ? p.pos - p.velocity * (16 + p.strokeScale * 12)
+          : p.prev;
+      final a = atan2(p.pos.dy - from.dy, p.pos.dx - from.dx);
+      final hueSpread = exportMode ? _kExportHueSpread : _kHueSpread;
+      var hue = (settings.hueBase + sin(a) * hueSpread + t * 12) % 360;
       if (hue < 0) hue += 360;
-      final speed = (p.pos - p.prev).distance.clamp(0, 42) / 42;
-      final alpha = (0.24 + speed * 0.36) * p.brightness;
+      final speed =
+          (p.pos - from).distance.clamp(0, exportMode ? 64 : 42) /
+          (exportMode ? 64 : 42);
+      final alpha = exportMode
+          ? (0.62 + speed * 0.32) * (0.72 + p.brightness * 0.28)
+          : (0.24 + speed * 0.36) * p.brightness;
       final color = HSVColor.fromAHSV(
         alpha,
         hue,
-        0.62 + speed * 0.18,
-        0.92 + speed * 0.08,
+        exportMode ? 0.72 + speed * 0.18 : 0.62 + speed * 0.18,
+        exportMode ? 0.98 : 0.92 + speed * 0.08,
       ).toColor();
 
       glowPaint
-        ..strokeWidth = settings.strokeWidth * p.strokeScale * 4.2
-        ..color = color.withValues(alpha: alpha * 0.16);
-      canvas.drawLine(p.prev, p.pos, glowPaint);
+        ..strokeWidth =
+            settings.strokeWidth * p.strokeScale * (exportMode ? 5.8 : 4.2)
+        ..color = color.withValues(alpha: alpha * (exportMode ? 0.28 : 0.16));
+      canvas.drawLine(from, p.pos, glowPaint);
 
       linePaint
-        ..strokeWidth = settings.strokeWidth * p.strokeScale
+        ..strokeWidth =
+            settings.strokeWidth * p.strokeScale * (exportMode ? 1.65 : 1)
         ..color = color;
-      canvas.drawLine(p.prev, p.pos, linePaint);
+      canvas.drawLine(from, p.pos, linePaint);
+
+      if (exportMode) {
+        final coreColor = HSVColor.fromAHSV(
+          min(1, alpha * 1.12),
+          (hue + 4) % 360,
+          0.28 + speed * 0.2,
+          1.0,
+        ).toColor();
+        corePaint
+          ..strokeWidth = max(0.7, settings.strokeWidth * p.strokeScale * 0.52)
+          ..color = coreColor;
+        canvas.drawLine(from, p.pos, corePaint);
+      }
     }
 
     final focus = attractor;
