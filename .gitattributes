@@ -1,0 +1,12 @@
+# Keep GitHub language stats focused on the app code.
+# Flutter generates native runner scaffolding for each platform; those files are
+# useful for builds but should not dominate the repository language breakdown.
+android/** linguist-vendored
+ios/** linguist-vendored
+linux/** linguist-vendored
+macos/** linguist-vendored
+windows/** linguist-vendored
+build/** linguist-vendored
+
+lib/**/*.dart linguist-language=Dart
+test/**/*.dart linguist-language=Dart
