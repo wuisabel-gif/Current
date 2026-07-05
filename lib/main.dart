@@ -24,7 +24,6 @@ class CurrentApp extends StatelessWidget {
 const double _kNoiseFrequency = 0.00135;
 const double _kTimeSpeed = 0.008;
 const double _kHueSpread = 24;
-const double _kExportHueSpread = 18;
 const double _kAttractorRadius = 330;
 const double _kAttractorOrbit = 0.38;
 const double _kDriftStrength = 0.55;
@@ -275,7 +274,7 @@ class _CurrentScreenState extends State<CurrentScreen>
       particles: _particles,
       t: _t,
       attractor: _attractor,
-      settings: _settings.copyWith(strokeWidth: 1.15, hueBase: 76),
+      settings: _settings.copyWith(strokeWidth: 0.95),
       exportMode: true,
     ).paint(canvas, _size);
 
@@ -611,7 +610,7 @@ class FlowFieldPainter extends CustomPainter {
       ..blendMode = BlendMode.plus;
     final linePaint = Paint()
       ..strokeCap = StrokeCap.round
-      ..blendMode = BlendMode.screen;
+      ..blendMode = exportMode ? BlendMode.srcOver : BlendMode.screen;
     final corePaint = Paint()
       ..strokeCap = StrokeCap.round
       ..blendMode = BlendMode.plus;
@@ -621,26 +620,25 @@ class FlowFieldPainter extends CustomPainter {
           ? p.pos - p.velocity * (16 + p.strokeScale * 12)
           : p.prev;
       final a = atan2(p.pos.dy - from.dy, p.pos.dx - from.dx);
-      final hueSpread = exportMode ? _kExportHueSpread : _kHueSpread;
-      var hue = (settings.hueBase + sin(a) * hueSpread + t * 12) % 360;
+      var hue = (settings.hueBase + sin(a) * _kHueSpread + t * 12) % 360;
       if (hue < 0) hue += 360;
       final speed =
           (p.pos - from).distance.clamp(0, exportMode ? 64 : 42) /
           (exportMode ? 64 : 42);
       final alpha = exportMode
-          ? (0.62 + speed * 0.32) * (0.72 + p.brightness * 0.28)
+          ? (0.2 + speed * 0.28) * p.brightness
           : (0.24 + speed * 0.36) * p.brightness;
       final color = HSVColor.fromAHSV(
         alpha,
         hue,
-        exportMode ? 0.72 + speed * 0.18 : 0.62 + speed * 0.18,
-        exportMode ? 0.98 : 0.92 + speed * 0.08,
+        exportMode ? 0.74 + speed * 0.12 : 0.62 + speed * 0.18,
+        exportMode ? 0.78 + speed * 0.12 : 0.92 + speed * 0.08,
       ).toColor();
 
       glowPaint
         ..strokeWidth =
-            settings.strokeWidth * p.strokeScale * (exportMode ? 5.8 : 4.2)
-        ..color = color.withValues(alpha: alpha * (exportMode ? 0.28 : 0.16));
+            settings.strokeWidth * p.strokeScale * (exportMode ? 4.9 : 4.2)
+        ..color = color.withValues(alpha: alpha * (exportMode ? 0.16 : 0.16));
       canvas.drawLine(from, p.pos, glowPaint);
 
       linePaint
@@ -651,13 +649,13 @@ class FlowFieldPainter extends CustomPainter {
 
       if (exportMode) {
         final coreColor = HSVColor.fromAHSV(
-          min(1, alpha * 1.12),
+          min(0.42, alpha * 0.55),
           (hue + 4) % 360,
-          0.28 + speed * 0.2,
-          1.0,
+          0.44 + speed * 0.12,
+          0.84,
         ).toColor();
         corePaint
-          ..strokeWidth = max(0.7, settings.strokeWidth * p.strokeScale * 0.52)
+          ..strokeWidth = max(0.45, settings.strokeWidth * p.strokeScale * 0.38)
           ..color = coreColor;
         canvas.drawLine(from, p.pos, corePaint);
       }

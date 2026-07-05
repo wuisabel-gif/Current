@@ -6,6 +6,14 @@ position, and can be tuned/exported from the live page.
 
 ![Current demo](demo.gif)
 
+## Video demo
+
+[![Watch the Current demo](https://img.youtube.com/vi/3b4evyvxHKE/maxresdefault.jpg)](https://youtu.be/3b4evyvxHKE)
+
+## Interaction demo
+
+![Cursor interaction demo](cursor_demo.gif)
+
 ## Export example
 
 ![Exported Current still](demo.png)
