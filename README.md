@@ -13,7 +13,7 @@ stroke definition for sharing or documentation.
 
 ![Current demo](demo.gif)
 
-Video demo: [https://youtu.be/3b4evyvxHKE](https://youtu.be/3b4evyvxHKE)
+**Youtube Video demo**: [https://youtu.be/3b4evyvxHKE](https://youtu.be/3b4evyvxHKE)
 
 ## Interaction demo
 
