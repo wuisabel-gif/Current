@@ -19,10 +19,6 @@ Video demo: [https://youtu.be/3b4evyvxHKE](https://youtu.be/3b4evyvxHKE)
 
 ![Cursor interaction demo](cursor_demo.gif)
 
-## Export example
-
-![Exported Current still](demo.png)
-
 ## Run locally
 
 ```sh
